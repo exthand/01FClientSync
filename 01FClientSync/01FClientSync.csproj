@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+    <RootNamespace>_01FClientSync</RootNamespace>
+    <ApplicationIcon>01F-Square.ico</ApplicationIcon>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <Company>EXTHAND sprl</Company>
+    <Authors>Jean-Gabriel Debaille</Authors>
+    <Copyright>(c) 2020 EXTHAND - BELGIUM</Copyright>
+    <PackageProjectUrl>https://www.01financials.eu</PackageProjectUrl>
+    <PackageIcon>01F-Square.png</PackageIcon>
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\..\..\extHand sprl\extHand sprl Team Site - Documents\Clients\01FINANCIALS\01 - Design\v2\01F-Square.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
+</Project>
