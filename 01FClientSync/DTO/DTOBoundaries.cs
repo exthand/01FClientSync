@@ -6,7 +6,7 @@ namespace GetBankStatements.DTO
 {
     public class DTOBoundaries
     {
-        public DateTime dateFrom { get; set; }
-        public DateTime dateTo { get; set; }
+        public DateTime? dateFrom { get; set; }
+        public DateTime? dateTo { get; set; }
     }
 }

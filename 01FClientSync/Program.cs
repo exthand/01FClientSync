@@ -617,9 +617,12 @@ namespace _01FClientSync
             {
                 AddTrace("Authenticated", false, true);
                 jsonContent = response.Content.ReadAsStringAsync().Result;
-                AddTrace(jsonContent, false, true, true);
                 DigitealAuthResult oAuth = JsonSerializer.Deserialize<DigitealAuthResult>(jsonContent);
                 httpClient.DefaultRequestHeaders.Add("Authorization", $"{oAuth.token_type} {oAuth.access_token}");
+                string token = oAuth.access_token;
+                oAuth.access_token = "*************";
+                AddTrace(JsonSerializer.Serialize(oAuth), false, true, true);
+                oAuth.access_token = token;
 
                 spinner.Start(Console.CursorTop - 1);
 
@@ -826,6 +829,7 @@ namespace _01FClientSync
             DateTime yesterday = new DateTime(DateTime.Now.AddDays(-1).Year, DateTime.Now.AddDays(-1).Month, DateTime.Now.AddDays(-1).Day, 23, 59, 59);
             int i = 0;
             HttpResponseMessage response;
+            string jsonContent = "";
 
             AddTrace("Connecting...", false, true);
 
@@ -884,8 +888,15 @@ namespace _01FClientSync
                                     response = httpClient.GetAsync($"/api/installation/connections/{connection.id}/accounts/{account.id}/transactions/boundaries").Result;
                                     if (response.IsSuccessStatusCode)
                                     {
-                                        DTOBoundaries dtoBoundaries = JsonSerializer.Deserialize<DTOBoundaries>(response.Content.ReadAsStringAsync().Result);
-                                        dateToGet = dtoBoundaries.dateFrom;
+                                        jsonContent = response.Content.ReadAsStringAsync().Result;
+                                        AddTrace(jsonContent, false, true, true);
+                                        DTOBoundaries dtoBoundaries = JsonSerializer.Deserialize<DTOBoundaries>(jsonContent);
+                                        if (dtoBoundaries.dateFrom is null)
+                                        {
+                                            AddTrace("Bottom boundary is null. Starting at " + dateToGet.ToString("dd/MM/yyyy"), true, true);
+                                        }
+                                        else
+                                            dateToGet = dtoBoundaries.dateFrom.Value;
                                         AddTrace("Boundaries found, loading from " + dateToGet.ToString("dd/MM/yyyy"), false, true);
                                     }
                                     else
@@ -913,12 +924,18 @@ namespace _01FClientSync
                                         dateToGet = currentBankAccount.LastRun.AddDays(1);
                                     }
                                 }
-                                
+
+                                int previousYear = dateToGet.Year;
 
                                 while (dateToGet <= yesterday && !cannotContinue)
                                 {
-                                    if (dateToGet.DayOfYear == 1)
+
+                                    if (previousYear != dateToGet.Year)
+                                    {
+                                        // We manage new year's reset to 1 sequence.
+                                        previousYear = dateToGet.Year;
                                         currentBankAccount.Sequence = 1;
+                                    }
                                     // IF FILE DOESN'T EXIST THEN GET THE FILES
                                     if (!DoesFileExist(account.iban, connection.label, dateToGet, currentBankAccount.Sequence.ToString()))
                                     {
