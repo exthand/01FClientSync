@@ -91,6 +91,7 @@ namespace _01FClientSync
 
                 string command="";
 
+
                 if (args!=null && args.Length>0)
                 {
                     command = args[0];
@@ -104,7 +105,12 @@ namespace _01FClientSync
                         if (command=="")
                             command = ReadString("> ");
                         AddTrace("Command " + command.ToUpper(), false, true, true);
-                        switch (command.ToUpper())
+
+                        string[] commands = command.Split(" ");
+
+                        command = commands[0].ToUpper();
+
+                        switch (command)
                         {
                             case "QUIT":
                                 quit = true;
@@ -118,6 +124,10 @@ namespace _01FClientSync
                                 break;
                             case "DCONFIG":
                                 DisplayConfig();
+                                break;
+                            case "LAST":
+                                string[] param = CleanArray(commands);
+                                ListTransactions(param[1], param[2]);
                                 break;
                             case "LIST":
                                 ListAccount();
@@ -152,6 +162,22 @@ namespace _01FClientSync
         }
 
         #region UTILITIES
+        
+        static string[] CleanArray(string[] inArray)
+        {
+            string[] outArray = new string[inArray.Length];
+            int y = 0;
+            for(int z =0; z<inArray.Length;z++)
+            {
+                if (!string.IsNullOrEmpty(inArray[z]))
+                {
+                    outArray[y] = inArray[z];
+                    y++;
+                }
+            }
+            return outArray;
+        }
+        
         static void DisplayHelp()
         {
             Console.WriteLine();
@@ -162,6 +188,7 @@ namespace _01FClientSync
             Console.WriteLine("banks     : list all banks connected.");
             Console.WriteLine("config    : allows you to enter configuration parameters.");
             Console.WriteLine("dconfig   : displays current configuration parameters.");
+            Console.WriteLine("last x y  : displays last X transactions for bank account Y.");
             Console.WriteLine("list      : displays all linked bank accounts.");
             Console.WriteLine("sync      : starts downloading CAMT & CODA files from server.");
             Console.WriteLine("quit      : Closes the app.");
@@ -744,6 +771,29 @@ namespace _01FClientSync
             return null;
         }
 
+        static DTOTransactionContainer GetTransactions(Guid installationID, Guid connectionID, Guid accountID, int last)
+        {
+            string url= $"/api/installation/connections/{connectionID}/accounts/{accountID}/transactions?size={last}";
+            string jsonContent;
+            Spinner spinner = new Spinner();
+            spinner.Start(Console.CursorTop - 1);
+            AddTrace("Calling :" + url, false, true);
+            HttpResponseMessage response = httpClient.GetAsync(url).Result;
+            spinner.Stop();
+            if (response.IsSuccessStatusCode)
+            {
+                jsonContent = response.Content.ReadAsStringAsync().Result;
+                AddTrace(jsonContent, false, true, true);
+                return JsonSerializer.Deserialize<DTOTransactionContainer>(jsonContent);
+            }
+            else
+            {
+                AddTrace("Getting Transactions failed. (" + response.StatusCode.ToString() + ")", true, true);
+                AddTrace("Error: '" + response.ReasonPhrase + "' from " + URLConn, true, true);
+            }
+            return null;
+        }
+
 
         static void ListBanks()
         {
@@ -757,7 +807,7 @@ namespace _01FClientSync
                 for(int i= 0; i<lstBanks.Count; i++)
                 {
                     line = lstBanks[i].connectorId.ToString().PadRight(4) + lstBanks[i].fullname.PadRight(20) + lstBanks[i].country.niceName.PadRight(20) + ("").PadLeft(10);
-                    if ((i+1<=lstBanks.Count))
+                    if ((i+1<lstBanks.Count))
                     {
                         i++;
                         line += lstBanks[i].connectorId.ToString().PadRight(4) + lstBanks[i].fullname.PadRight(20) + lstBanks[i].country.niceName.PadRight(20);
@@ -769,6 +819,65 @@ namespace _01FClientSync
             {
                 AddTrace("No banks found.", true, true);
             }
+            return;
+        }
+
+        static void ListTransactions(string number, string bankAccount)
+        {
+            Spinner spinner = new Spinner();
+            int i = 0;
+
+            AddTrace("Connecting...", false, true);
+
+            if (!IsAuthenticated)
+            {
+                AddTrace("Not authenticated.", true, true);
+                return;
+            }
+
+            DTOInstallation currentInstallation = GetInstallation();
+
+            if (currentInstallation != null)
+            {
+
+                AddTrace("Processing installation " + currentInstallation.label, false, true);
+
+                //Connecting to connections: 
+                List<DTOInstallation> connections = GetConnections(currentInstallation.id);
+
+                if (connections != null && connections.Count > 0)
+                {
+                    // Browsing connections.
+                    foreach (DTOInstallation connection in connections)
+                    {
+                        AddTrace("Getting accounts for " + connection.label, false, true);
+                        List<DTOAccount> accounts = GetAccounts(currentInstallation.id, connection.id);
+                        if (accounts != null && accounts.Count > 0)
+                        {
+                            // Browsing accounts
+                            foreach (DTOAccount account in accounts)
+                            {
+                                if (account.iban==bankAccount)
+                                {
+                                    // We get the last X transactions
+                                    DTOTransactionContainer dtoContainer= GetTransactions(currentInstallation.id, connection.id, account.id, int.Parse(number));
+                                    if (dtoContainer != null)
+                                    {
+                                        AddTrace("Fetched " + dtoContainer.ToString() + " transactions.", false, true);
+                                        foreach (DTOTransaction transaction in dtoContainer.transactions)
+                                        {
+                                            AddTrace(transaction.executionDate.ToString("dd/MM/yyyy") + " " + transaction.valueDate.ToString("dd/MM/yyyy") +"\t" + transaction.amount + transaction.currency + "\t" + transaction.counterpartName + "\t" + transaction.counterpartReference, false, true);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
+
+
             return;
         }
 
