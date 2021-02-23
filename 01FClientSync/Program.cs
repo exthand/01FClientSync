@@ -32,6 +32,7 @@ namespace _01FClientSync
         static void Main(string[] args)
         {
             bool quit = false;
+            bool quitOnError = false;
 
             errorLog = new StreamWriter( DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".log", false, Encoding.UTF8);
 
@@ -150,15 +151,22 @@ namespace _01FClientSync
                     catch (Exception e)
                     {
                         AddTrace(e.Message, true, true);
+                        quitOnError = true;
                     }
                 } while (!quit);
             }
             catch(Exception e)
             {
                 AddTrace(e.Message, true, true);
+                quitOnError = true;
             }
             errorLog.Close();
             errorLog.Dispose();
+
+            if (quitOnError)
+                Environment.ExitCode=-1;
+            else
+                Environment.ExitCode = 0;
         }
 
         #region UTILITIES
